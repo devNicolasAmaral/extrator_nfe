@@ -3,6 +3,7 @@ import os
 import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 tk_root = Tk()
 tk_root.withdraw()
@@ -11,30 +12,42 @@ xml_folder = filedialog.askdirectory()
 
 if xml_folder:
     file_list = os.listdir(xml_folder)
+    file_error = []
     list_data_to_excel = []
     ns = {'ns': 'http://www.portalfiscal.inf.br/nfe'}
     column_names=["ID NFe", "CNPJ do Emitente", "Valor Total", "Data e Hora de Emissão", "Data de Emissão"]
     file_name = os.path.abspath(os.path.join(xml_folder, 'tabela_NFe.xlsx'))
+    log_file = os.path.abspath(os.path.join(xml_folder, f'log_file_{datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}.txt'))
 
     for file in file_list:
         if file.lower().endswith('.xml'):
 
-            file_path = os.path.abspath(os.path.join(xml_folder, file))
-            tree = ET.parse(file_path)
-            root = tree.getroot()
+            try:
+                file_path = os.path.abspath(os.path.join(xml_folder, file))
+                tree = ET.parse(file_path)
+                root = tree.getroot()
+                infNFe = root.find('.//ns:infNFe', ns)
+                NFe_id = infNFe.get('Id').strip() if infNFe is not None else None
+                NFe_id = NFe_id.strip('NFe') if NFe_id else None
+                emit = root.find('.//ns:emit', ns)
+                emit_CNPJ = emit.find('ns:CNPJ', ns) if emit is not None else None
+                vNF = root.find('.//ns:vNF', ns)
+                dhEmi = root.find('.//ns:dhEmi', ns)
+                dEmi = root.find('.//ns:dEmi', ns)
+                data_to_excel = {'ID NFe': NFe_id if NFe_id is not None else None, 'CNPJ do Emitente': emit_CNPJ.text if emit_CNPJ is not None else None, 'Valor Total': vNF.text if vNF is not None else None, 'Data e Hora de Emissão': dhEmi.text if dhEmi is not None else None, 'Data de Emissão': dEmi.text if dEmi is not None else None}
 
-            infNFe = root.find('.//ns:infNFe', ns)
-            NFe_id = infNFe.get('Id').strip() if infNFe is not None else None
-            NFe_id = NFe_id.strip('NFe') if NFe_id else None
-            emit = root.find('.//ns:emit', ns)
-            emit_CNPJ = emit.find('ns:CNPJ', ns) if emit is not None else None
-            vNF = root.find('.//ns:vNF', ns)
-            dhEmi = root.find('.//ns:dhEmi', ns)
-            dEmi = root.find('.//ns:dEmi', ns)
+                list_data_to_excel.append(data_to_excel)
 
-            data_to_excel = {'ID NFe': NFe_id if NFe_id is not None else None, 'CNPJ do Emitente': emit_CNPJ.text if emit_CNPJ is not None else None, 'Valor Total': vNF.text if vNF is not None else None, 'Data e Hora de Emissão': dhEmi.text if dhEmi is not None else None, 'Data de Emissão': dEmi.text if dEmi is not None else None}
-            list_data_to_excel.append(data_to_excel)
+            except ET.ParseError as e:
+                file_error.append(file)
+                continue
+    if file_error:
+        with open(log_file, 'w') as f:
+            for e in file_error:
+                print(e)
+                f.write(f'{e}\n')
 
+    
     if list_data_to_excel:
         new_df = pd.DataFrame(list_data_to_excel, columns=column_names)
 
@@ -67,4 +80,6 @@ if xml_folder:
                 messagebox.showerror("Erro Inesperado", f"Ocorreu um erro ao salvar o arquivo: {e}")
     else:
         messagebox.showwarning("Informação", "Nenhum arquivo XML encontrado na pasta selecionada.")
+messagebox.showwarning("Atenção", f"Alguns arquivos foram ignorados por estarem corrompidos ou vazios. \nVeja mais detalhes em: {log_file}")
+
 tk_root.destroy()
