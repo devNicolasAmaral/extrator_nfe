@@ -41,12 +41,13 @@ def extract_xml_data(xml_folder):
 def create_log_file(xml_folder, file_error):
     log_file = os.path.abspath(os.path.join(xml_folder, f'log_file_{datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}.txt'))
 
-    if file_error:
-            with open(log_file, 'w') as f:
-                for e in file_error:
-                    print(e)
-                    f.write(f'{e}\n')
+    if not file_error:
+        return None
 
+    with open(log_file, 'w') as f:
+        for e in file_error:
+            print(e)
+            f.write(f'{e}\n')
     return log_file
 
 def filter_dataframe(raw_data_list, excel_file):
@@ -65,23 +66,23 @@ def filter_dataframe(raw_data_list, excel_file):
 
 def save_to_excel(new_df, excel_file):
     if new_df.empty:
-        return 'no changes' 
+        return 'no changes', None
 
     try:
         if os.path.isfile(excel_file):       
             with pd.ExcelWriter(excel_file, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
                 start_row = writer.sheets['Dados'].max_row if 'Dados' in writer.sheets else 0
                 new_df.to_excel(writer, sheet_name='Dados', index=False, header=not start_row, startrow=start_row)
-                return 'spreadsheet updated' 
+                return 'spreadsheet updated', None
         else:  
             with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
                 new_df.to_excel(writer, sheet_name='Dados', index=False)   
-                return 'spreadsheet created'
+                return 'spreadsheet created', None
 
     except PermissionError:
-        return 'permission error'
+        return 'permission error', None
     except Exception as e:
-        return f'generic error', e 
+        return 'generic error', e 
     
 def main():
     tk_root = Tk()
@@ -112,7 +113,7 @@ def main():
             case _: 
                 messagebox.showerror("Erro Inesperado", f"Ocorreu um erro ao salvar o arquivo: {message_text[1]}")
             
-        if file_error:
+        if log_file:
             messagebox.showwarning("Atenção", f"Alguns arquivos foram ignorados por estarem corrompidos ou vazios. \nVeja mais detalhes em: {log_file}")
 
     tk_root.destroy()
