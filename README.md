@@ -5,7 +5,7 @@
 Aplicação em Python para automatizar a extração em massa de dados de Notas Fiscais XML, eliminando o processo manual de leitura, organização e geração de planilhas.
 
 ---
-
+ 
 ## Funcionalidades
 
 - Leitura em lote de arquivos XML
